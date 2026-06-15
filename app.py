@@ -5,177 +5,183 @@ import requests
 from PyDictionary import PyDictionary
 import time
 
-# --- 1. DATABASE SETUP (CRUD Operations) ---
-# Connecting to local SQLite database (Creates 'spelly.db' automatically)
-conn = sqlite3.connect('spelly.db', check_same_thread=False)
-cursor = conn.cursor()
-cursor.execute("CREATE TABLE IF NOT EXISTS words (word TEXT PRIMARY KEY)")
-conn.commit()
+# --- 1. DATABASE MANAGEMENT (SQLite3) ---
+def init_db():
+    conn = sqlite3.connect('spelly.db')
+    c = conn.cursor()
+    c.execute('''CREATE TABLE IF NOT EXISTS words (word TEXT PRIMARY KEY)''')
+    conn.commit()
+    conn.close()
 
-# --- 2. WORD VALIDATION (Clean MIT List Download) ---
-# Fetching the official 10,000 MIT word list and cleaning it up
-@st.cache_data  # Keeps data cached so it doesn't re-download on every click
-def load_words():
+def add_word_db(word):
+    conn = sqlite3.connect('spelly.db')
+    c = conn.cursor()
+    try:
+        c.execute("INSERT INTO words (word) VALUES (?)", (word.lower(),))
+        conn.commit()
+    except sqlite3.IntegrityError:
+        pass # Word already exists
+    conn.close()
+
+def get_all_words_db():
+    conn = sqlite3.connect('spelly.db')
+    c = conn.cursor()
+    c.execute("SELECT word FROM words")
+    words = [row[0] for row in c.fetchall()]
+    conn.close()
+    return words
+
+def delete_word_db(word):
+    conn = sqlite3.connect('spelly.db')
+    c = conn.cursor()
+    c.execute("DELETE FROM words WHERE word=?", (word.lower(),))
+    conn.commit()
+    conn.close()
+
+# --- 2. WORD VALIDATION & API ---
+@st.cache_data
+def load_word_list():
+    # Fetches the required MIT word list
     try:
         response = requests.get("https://www.mit.edu/mecprice/wordlist.10000")
-        raw_words = response.text.splitlines()
-        
-        clean_words = []
-        for w in raw_words:
-            word_clean = w.strip().lower()
-            # GLITCH FIX: Only allow real words (no symbols, no spaces) between 3 and 10 characters
-            if word_clean.isalpha() and 3 <= len(word_clean) <= 10:
-                clean_words.append(word_clean)
-                
-        return clean_words
+        words = response.text.splitlines()
+        return [w.lower() for w in words]
     except:
-        # Fallback backup words in case of internet connection issues
-        return ["apple", "elephant", "tiger", "rabbit", "turtle"]
+        return ["apple", "elephant", "tiger", "rabbit", "turtle"] # Fallback
 
-valid_words = load_words()
+def get_hint(word):
+    dictionary = PyDictionary()
+    meaning = dictionary.meaning(word)
+    if meaning:
+        # Return the first meaning found
+        for pos, meanings in meaning.items():
+            return f"({pos}) {meanings[0]}"
+    return "No hint available for this word."
 
-# --- 3. SESSION STATE (Game Memory) ---
-# Keeps track of scores and turns across page reloads
-if 'used_words' not in st.session_state:
-    st.session_state.used_words = []
-if 'player_score' not in st.session_state:
-    st.session_state.player_score = 0
-if 'ai_score' not in st.session_state:
-    st.session_state.ai_score = 0
-if 'last_letter' not in st.session_state:
-    st.session_state.last_letter = ""
-if 'target_word' not in st.session_state:
-    st.session_state.target_word = ""
-if 'shuffled_word' not in st.session_state:
-    st.session_state.shuffled_word = ""
-if 'turn' not in st.session_state:
-    st.session_state.turn = "Player"
+# --- 3. GAME LOGIC & STATE INITIALIZATION ---
+def init_session_state():
+    if 'used_words' not in st.session_state:
+        st.session_state.used_words = []
+    if 'player_score' not in st.session_state:
+        st.session_state.player_score = 0
+    if 'ai_score' not in st.session_state:
+        st.session_state.ai_score = 0
+    if 'current_turn' not in st.session_state:
+        st.session_state.current_turn = 'Player'
+    if 'last_letter' not in st.session_state:
+        st.session_state.last_letter = ''
+    if 'target_word' not in st.session_state:
+        st.session_state.target_word = ''
+    if 'shuffled_word' not in st.session_state:
+        st.session_state.shuffled_word = ''
 
-# --- 4. MAIN GAME INTERFACE ---
-st.title("🎮 Spelly Word Game")
+# --- 4. MAIN APP UI ---
+def main():
+    st.set_page_config(page_title="Spelly Word Game", layout="wide")
+    init_db()
+    init_session_state()
+    valid_words = load_word_list()
 
-# --- SIDEBAR: WORD MANAGEMENT (CRUD) ---
-st.sidebar.header("Word Management (CRUD)")
-
-# C - CREATE (Add Word)
-new_word = st.sidebar.text_input("1. Add word to Database:")
-if st.sidebar.button("Add Word"):
-    if new_word:
-        try:
-            cursor.execute("INSERT INTO words (word) VALUES (?)", (new_word.lower(),))
-            conn.commit()
-            st.sidebar.success(f"'{new_word}' added successfully!")
-        except:
-            st.sidebar.warning("This word already exists in the database.")
-
-# R - READ (View Words)
-cursor.execute("SELECT word FROM words")
-all_db_words = [row[0] for row in cursor.fetchall()]
-st.sidebar.write("2. View Saved Words:", all_db_words)
-
-# U - UPDATE (Modify Word)
-st.sidebar.write("3. Modify/Update a Word:")
-if all_db_words:
-    word_to_edit = st.sidebar.selectbox("Select word to change:", all_db_words)
-    updated_spelling = st.sidebar.text_input("Enter new spelling:")
-    if st.sidebar.button("Update Word"):
-        if updated_spelling:
-            cursor.execute("UPDATE words SET word=? WHERE word=?", (updated_spelling.lower(), word_to_edit))
-            conn.commit()
-            st.sidebar.success(f"Word updated to '{updated_spelling}'!")
-            st.rerun()
-
-# D - DELETE (Remove Word)
-delete_word = st.sidebar.text_input("4. Delete word from Database:")
-if st.sidebar.button("Delete Word"):
-    if delete_word:
-        cursor.execute("DELETE FROM words WHERE word=?", (delete_word.lower(),))
-        conn.commit()
-        st.sidebar.error(f"'{delete_word}' deleted successfully!")
-        st.rerun()
-
-
-# --- MAIN SCREEN: SCORE & RULES ---
-col1, col2 = st.columns(2)
-col1.metric("Player Score", st.session_state.player_score)
-col2.metric("AI Score", st.session_state.ai_score)
-
-# Antakshari Rule Display
-if st.session_state.last_letter:
-    st.info(f"Rule: Next word MUST start with the letter **'{st.session_state.last_letter.upper()}'**")
-
-# --- 5. GAME PLAY LOGIC ---
-
-# A) PLAYER'S TURN
-if st.session_state.turn == "Player":
-    st.subheader("👨‍💼 Your Turn!")
+    st.title("🎮 Spelly Word Game")
     
-    # Select a new word if there isn't an active target word
-    if not st.session_state.target_word:
-        available = [w for w in valid_words if w not in st.session_state.used_words]
-        if st.session_state.last_letter:
-            available = [w for w in available if w.startswith(st.session_state.last_letter)]
+    # Sidebar for CRUD Operations
+    with st.sidebar:
+        st.header("Word Management (CRUD)")
+        new_word = st.text_input("Add a custom word to DB:")
+        if st.button("Add Word"):
+            if new_word:
+                add_word_db(new_word)
+                st.success(f"'{new_word}' added!")
+                
+        st.subheader("Database Words")
+        db_words = get_all_words_db()
+        st.write(db_words)
         
-        if available:
-            st.session_state.target_word = random.choice(available)
-            # Shuffle the selected word's letters
-            letters = list(st.session_state.target_word)
-            random.shuffle(letters)
-            st.session_state.shuffled_word = "".join(letters)
-        else:
-            st.error("Game Over! No words available matching the criteria.")
-            st.stop()
+        del_word = st.text_input("Delete a word:")
+        if st.button("Delete"):
+            delete_word_db(del_word)
+            st.warning(f"'{del_word}' deleted!")
 
-    st.write(f"Unscramble and guess the correct spelling: **{st.session_state.shuffled_word.upper()}**")
-    
-    # Hint Button (Fetches meaning using PyDictionary)
-    if st.button("💡 Get Hint"):
-        dictionary = PyDictionary()
-        meaning = dictionary.meaning(st.session_state.target_word)
-        if meaning:
-            for key in meaning:
-                st.info(f"Hint (Meaning): {meaning[key][0]}")
-                break
-        else:
-            st.info("No hint available for this word.")
+    # Main Game Area
+    col1, col2 = st.columns(2)
+    with col1:
+        st.subheader(f"🗣️ Player Score: {st.session_state.player_score}")
+    with col2:
+        st.subheader(f"🤖 AI Score: {st.session_state.ai_score}")
 
-    # Player Guess Input
-    player_guess = st.text_input("Type your answer here:").strip().lower()
-    if st.button("Submit Answer"):
-        if player_guess == st.session_state.target_word:
-            st.success("Correct Answer!")
-            st.session_state.player_score += len(player_guess) # Score based on word length
-            st.session_state.used_words.append(player_guess)   # Add to used list
-            st.session_state.last_letter = player_guess[-1]   # Save the last letter
-            st.session_state.target_word = ""                 # Clear target for next round
-            st.session_state.turn = "AI"                      # Pass turn to AI
-            time.sleep(1)
-            st.rerun()
-        else:
-            st.error("Incorrect spelling! Please try again.")
+    st.divider()
 
-# B) AI'S TURN (Computer Opponent)
-else:
-    st.subheader("🤖 Computer (AI) is thinking...")
-    time.sleep(1.5)  # Simulated thinking delay
-    
-    available = [w for w in valid_words if w not in st.session_state.used_words]
+    # Determine Valid Starting Letter
     if st.session_state.last_letter:
-        available = [w for w in available if w.startswith(st.session_state.last_letter)]
-        
-    if available:
-        ai_word = random.choice(available)
-        st.session_state.ai_score += len(ai_word)
-        st.session_state.used_words.append(ai_word)
-        st.session_state.last_letter = ai_word[-1]
-        st.write(f"AI played the word: **{ai_word.upper()}**")
-        st.session_state.turn = "Player"  # Pass turn back to player
-        time.sleep(1.5)
-        st.rerun()
-    else:
-        st.success("AI has no words left. You Win!")
-        st.session_state.turn = "Player"
+        st.info(f"The next word MUST start with the letter: **{st.session_state.last_letter.upper()}**")
 
-# Played Words History List
-st.write("---")
-st.write("**Played Words History:**", ", ".join(st.session_state.used_words))
+    # --- PLAYER TURN ---
+    if st.session_state.current_turn == 'Player':
+        st.write("### Your Turn!")
+        
+        # Shuffled Word Challenge
+        if not st.session_state.target_word:
+            # Pick a word for the player to guess that starts with the right letter
+            available_words = [w for w in valid_words if w not in st.session_state.used_words]
+            if st.session_state.last_letter:
+                available_words = [w for w in available_words if w.startswith(st.session_state.last_letter)]
+            
+            if available_words:
+                st.session_state.target_word = random.choice(available_words)
+                letters = list(st.session_state.target_word)
+                random.shuffle(letters)
+                st.session_state.shuffled_word = "".join(letters)
+            else:
+                st.error("No more words available! Game Over.")
+                st.stop()
+
+        st.warning(f"🔀 Unscramble this word: **{st.session_state.shuffled_word.upper()}**")
+        
+        # Hint Feature
+        if st.button("💡 Get Hint"):
+            hint_text = get_hint(st.session_state.target_word)
+            st.info(f"Hint: {hint_text}")
+
+        player_input = st.text_input("Enter your guessed word:").strip().lower()
+        
+        if st.button("Submit Word"):
+            if player_input == st.session_state.target_word:
+                st.success("Correct!")
+                st.session_state.player_score += len(player_input)
+                st.session_state.used_words.append(player_input)
+                st.session_state.last_letter = player_input[-1] # Get last letter
+                st.session_state.current_turn = 'AI'
+                st.session_state.target_word = '' # Reset for next round
+                st.rerun()
+            else:
+                st.error("Incorrect spelling. Try again!")
+
+    # --- AI TURN ---
+    elif st.session_state.current_turn == 'AI':
+        st.write("### 🤖 Computer's Turn...")
+        with st.spinner("AI is thinking..."):
+            time.sleep(1.5) # Simulate thinking time
+            
+            available_words = [w for w in valid_words if w not in st.session_state.used_words]
+            if st.session_state.last_letter:
+                available_words = [w for w in available_words if w.startswith(st.session_state.last_letter)]
+            
+            if available_words:
+                ai_word = random.choice(available_words)
+                st.session_state.ai_score += len(ai_word)
+                st.session_state.used_words.append(ai_word)
+                st.session_state.last_letter = ai_word[-1]
+                st.session_state.current_turn = 'Player'
+                
+                st.success(f"The AI played: **{ai_word.upper()}**")
+                time.sleep(2)
+                st.rerun()
+            else:
+                st.error("AI couldn't find a word. You win!")
+
+    st.divider()
+    st.write("### 📜 Used Words List")
+    st.write(", ".join(st.session_state.used_words))
+
+if __name__ == "__main__":
+    main()
