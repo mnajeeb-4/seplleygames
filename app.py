@@ -4,8 +4,18 @@ import random
 import requests
 from PyDictionary import PyDictionary
 
-# Initialize PyDictionary for hints
-dictionary = PyDictionary()
+# Initialize PyDictionary safely
+try:
+    dictionary = PyDictionary()
+except:
+    dictionary = None
+
+# Helper function to handle streamlit rerun compatibility across versions
+def safe_rerun():
+    if hasattr(st, "rerun"):
+        st.rerun()
+    else:
+        st.experimental_rerun()
 
 # -----------------------------------------------------------------
 # DATABASE SETUP (SQLite3 for CRUD Operations)
@@ -64,23 +74,26 @@ def delete_word_from_db(word):
     conn.close()
 
 # -----------------------------------------------------------------
-# WORD VALIDATION & MIT WORDLIST FETCHING (FIXED)
+# WORD VALIDATION & MIT LINK FETCHING (AS PER PDF)
 # -----------------------------------------------------------------
 @st.cache_data
 def load_mit_wordlist():
+    # PDF mein diya gaya exact link
     url = "https://www.mit.edu/mecprice/wordlist.10000"
-    # FIXED: Added User-Agent to prevent MIT server from blocking requests
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
     }
     try:
-        response = requests.get(url, headers=headers, timeout=5)
+        response = requests.get(url, headers=headers, timeout=10)
         if response.status_code == 200:
-            return set(w.strip().lower() for w in response.text.split('\n') if w.strip() and w.strip().isalpha())
-    except:
+            # Wordlist ko process kar rahe hain aur clean words nikal rahe hain
+            words = set(w.strip().lower() for w in response.text.split('\n') if w.strip() and w.strip().isalpha() and len(w.strip()) > 1)
+            if words:
+                return words
+    except Exception as e:
         pass
     
-    # FIXED: Enhanced large fallback list with multiple words for each letter if internet fails
+    # Sirf tab chalega agar internet bilkul kaam na kare ya MIT server down ho
     return {
         "apple", "apricot", "ant", "airplane", "actor", "animal", "arrow",
         "banana", "berry", "book", "beautiful", "balloon", "butter", "bridge",
@@ -108,6 +121,27 @@ def load_mit_wordlist():
         "xylophone", "xray", "yacht", "yellow", "year", "young", "yoga", "yolk",
         "zebra", "zoo", "zone", "zero", "zipper", "zigzag", "zenith"
     }
+
+def get_word_hint(word):
+    if not word:
+        return "No word to guess right now."
+    if dictionary is None:
+        return f"The word starts with '{word[0].upper()}' and has {len(word)} letters."
+    try:
+        meanings = dictionary.meaning(word)
+        synonyms = dictionary.synonym(word)
+        
+        hint_text = ""
+        if meanings:
+            first_key = list(meanings.keys())[0]
+            hint_text += f"**Meaning ({first_key}):** {meanings[first_key][0]}\n\n"
+        if synonyms:
+            hint_text += f"**Synonyms:** {', '.join(synonyms[:3])}"
+        if hint_text:
+            return hint_text
+    except:
+        pass
+    return f"The word starts with '{word[0].upper()}' and has {len(word)} letters."
 
 # -----------------------------------------------------------------
 # GAME INITIALIZATION & SESSION STATES
@@ -144,11 +178,14 @@ if 'game_msg' not in st.session_state:
 # -----------------------------------------------------------------
 def shuffle_word(word):
     word_chars = list(word)
-    random.shuffle(word_chars)
+    # Loop se bachne ke liye shuffle tab tak karein jab tak word badal na jaye
+    attempts = 0
+    while "".join(word_chars) == word and attempts < 10:
+        random.shuffle(word_chars)
+        attempts += 1
     return "".join(word_chars)
 
 def trigger_computer_turn(from_letter):
-    # Filter words starting with from_letter and make sure they haven't been used yet
     possible_words = [w for w in all_valid_words if w.startswith(from_letter) and w not in st.session_state.used_words]
     
     if possible_words:
@@ -196,7 +233,7 @@ def process_game_turn(user_input):
             st.session_state.player_score += len(user_input)
             st.session_state.last_letter = user_input[-1]
             st.session_state.shuffled_word = ""
-            st.session_state.current_word = ""
+            # Clear current word AFTER getting hint if needed, but here turn changes
             st.session_state.turn_step = "PLAY_NEW_WORD"
             st.session_state.hint_text = ""
             st.session_state.game_msg = (f"Correct Guess! Now it's your turn to enter a NEW word starting with '{st.session_state.last_letter.upper()}'.", "success")
@@ -258,17 +295,17 @@ with tab1:
         submit_action = st.form_submit_button(label="Submit Move")
         if submit_action:
             process_game_turn(user_input_val)
-            st.rerun()
+            safe_rerun()
 
     c1, c2 = st.columns(2)
     if st.session_state.turn_step == "GUESS_SHUFFLED_WORD":
         if c1.button("💡 Ask AI for Hint", use_container_width=True):
             st.session_state.hint_text = get_word_hint(st.session_state.current_word)
-            st.rerun()
+            safe_rerun()
             
     if c2.button("🔄 Restart Match", use_container_width=True):
         reset_game()
-        st.rerun()
+        safe_rerun()
 
     if st.session_state.hint_text:
         st.info(f"**AI Hint Details:**\n\n{st.session_state.hint_text}")
@@ -285,6 +322,7 @@ with tab2:
         if new_word_input.isalpha():
             if add_word_to_db(new_word_input):
                 st.success(f"'{new_word_input}' added to database successfully!")
+                st.rerun()
             else:
                 st.warning("Word already exists in your database.")
         else:
@@ -301,7 +339,7 @@ with tab2:
             if st.button("📝 Save Update"):
                 if updated_name.isalpha() and update_word_in_db(selected_word, updated_name):
                     st.success("Word modified successfully!")
-                    st.rerun()
+                    safe_rerun()
                 else:
                     st.error("Failed to update.")
                     
@@ -310,4 +348,6 @@ with tab2:
             if st.button("🗑️ Permanent Delete", type="primary"):
                 delete_word_from_db(selected_word)
                 st.success("Word removed!")
-                st.rerun()  st.info("Local SQLite database is currently empty.")
+                safe_rerun()
+    else:
+        st.info("Local SQLite database is currently empty.")
