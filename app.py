@@ -44,19 +44,18 @@ def load_word_list():
     # Fetches the required MIT word list
     try:
         response = requests.get("https://www.mit.edu/mecprice/wordlist.10000")
-        words = response.text.splitlines()
-        return [w.lower() for w in words]
+        raw_words = response.text.splitlines()
+        
+        clean_words = []
+        for w in raw_words:
+            word_clean = w.strip().lower()
+            # YAHAN FIX HAI: Sirf a-z wale words allow karega, symbols/spaces nahi
+            if word_clean.isalpha() and 3 <= len(word_clean) <= 10:
+                clean_words.append(word_clean)
+                
+        return clean_words
     except:
         return ["apple", "elephant", "tiger", "rabbit", "turtle"] # Fallback
-
-def get_hint(word):
-    dictionary = PyDictionary()
-    meaning = dictionary.meaning(word)
-    if meaning:
-        # Return the first meaning found
-        for pos, meanings in meaning.items():
-            return f"({pos}) {meanings[0]}"
-    return "No hint available for this word."
 
 # --- 3. GAME LOGIC & STATE INITIALIZATION ---
 def init_session_state():
