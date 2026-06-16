@@ -64,38 +64,50 @@ def delete_word_from_db(word):
     conn.close()
 
 # -----------------------------------------------------------------
-# WORD VALIDATION & MIT WORDLIST FETCHING
+# WORD VALIDATION & MIT WORDLIST FETCHING (FIXED)
 # -----------------------------------------------------------------
 @st.cache_data
 def load_mit_wordlist():
-    # PDF Requirement: Validate words using the official MIT 10,000 wordlist link
     url = "https://www.mit.edu/mecprice/wordlist.10000"
+    # FIXED: Added User-Agent to prevent MIT server from blocking requests
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+    }
     try:
-        response = requests.get(url, timeout=5)
+        response = requests.get(url, headers=headers, timeout=5)
         if response.status_code == 200:
-            return set(w.strip().lower() for w in response.text.split('\n') if w.strip())
+            return set(w.strip().lower() for w in response.text.split('\n') if w.strip() and w.strip().isalpha())
     except:
         pass
-    # Fallback words if internet is slow or connection fails
-    return {"apple", "banana", "computer", "elephant", "game", "python", "streamlit", "zebra", "tiger", "orange"}
-
-def get_word_hint(word):
-    # PyDictionary implementation for meanings & synonyms as per PDF
-    try:
-        meanings = dictionary.meaning(word)
-        synonyms = dictionary.synonym(word)
-        
-        hint_text = ""
-        if meanings:
-            first_key = list(meanings.keys())[0]
-            hint_text += f"**Meaning ({first_key}):** {meanings[first_key][0]}\n\n"
-        if synonyms:
-            hint_text += f"**Synonyms:** {', '.join(synonyms[:3])}"
-        if hint_text:
-            return hint_text
-    except:
-        pass
-    return f"The word starts with '{word[0].upper()}' and has {len(word)} letters."
+    
+    # FIXED: Enhanced large fallback list with multiple words for each letter if internet fails
+    return {
+        "apple", "apricot", "ant", "airplane", "actor", "animal", "arrow",
+        "banana", "berry", "book", "beautiful", "balloon", "butter", "bridge",
+        "computer", "cat", "car", "challenge", "candle", "coffee", "camera",
+        "dog", "door", "doctor", "dance", "diamond", "dolphin", "dragon",
+        "elephant", "egg", "eagle", "earth", "engine", "energy", "elbow",
+        "fox", "fish", "forest", "friend", "flower", "father", "feather",
+        "game", "garden", "gold", "guitar", "grapes", "galaxy", "garlic",
+        "house", "horse", "happy", "history", "hammer", "honey", "helmet",
+        "island", "ice", "ink", "internet", "image", "iron", "insect",
+        "jacket", "juice", "join", "joke", "journal", "jungle", "jewel",
+        "kangaroo", "king", "key", "kitchen", "kite", "keyboard", "kidney",
+        "lion", "lamp", "leaf", "lemon", "lizard", "laptop", "leather",
+        "monkey", "mouse", "moon", "music", "market", "mirror", "melon",
+        "nest", "night", "nature", "notebook", "needle", "necklace", "nurse",
+        "orange", "owl", "ocean", "office", "onion", "olive", "ostrich",
+        "python", "pen", "planet", "paper", "pencil", "pumpkin", "palace",
+        "queen", "quiet", "quick", "question", "quilt", "quail", "quartz",
+        "rabbit", "river", "rain", "rose", "rocket", "ring", "robot",
+        "streamlit", "sun", "star", "school", "shadow", "silver", "spider",
+        "tiger", "tree", "train", "time", "tomato", "turtle", "ticket",
+        "umbrella", "uncle", "universe", "under", "unicorn", "unite", "urgent",
+        "violin", "valley", "voice", "view", "vessel", "village", "velvet",
+        "water", "window", "wolf", "world", "wallet", "weapon", "whisper",
+        "xylophone", "xray", "yacht", "yellow", "year", "young", "yoga", "yolk",
+        "zebra", "zoo", "zone", "zero", "zipper", "zigzag", "zenith"
+    }
 
 # -----------------------------------------------------------------
 # GAME INITIALIZATION & SESSION STATES
@@ -108,7 +120,6 @@ all_valid_words = mit_words.union(set(db_words))
 st.set_page_config(page_title="Spelly Word Game", page_icon="🎮", layout="centered")
 st.title("🎮 Spelly Word Game")
 
-# Tracking stats and scores according to PDF
 if 'player_score' not in st.session_state:
     st.session_state.player_score = 0
 if 'computer_score' not in st.session_state:
@@ -124,7 +135,7 @@ if 'hint_text' not in st.session_state:
 if 'last_letter' not in st.session_state:
     st.session_state.last_letter = ""
 if 'turn_step' not in st.session_state:
-    st.session_state.turn_step = "START"  # Statuses: START, PLAY_NEW_WORD, GUESS_SHUFFLED_WORD
+    st.session_state.turn_step = "START"
 if 'game_msg' not in st.session_state:
     st.session_state.game_msg = ("Welcome! Enter any valid word to start the Antakshari chain.", "info")
 
@@ -137,7 +148,7 @@ def shuffle_word(word):
     return "".join(word_chars)
 
 def trigger_computer_turn(from_letter):
-    # AI logic: Find word starting with last letter of player's word and not used before
+    # Filter words starting with from_letter and make sure they haven't been used yet
     possible_words = [w for w in all_valid_words if w.startswith(from_letter) and w not in st.session_state.used_words]
     
     if possible_words:
@@ -145,7 +156,7 @@ def trigger_computer_turn(from_letter):
         st.session_state.current_word = chosen_word
         st.session_state.shuffled_word = shuffle_word(chosen_word)
         st.session_state.used_words.append(chosen_word)
-        st.session_state.computer_score += len(chosen_word)  # Score tracked by word length
+        st.session_state.computer_score += len(chosen_word)
         st.session_state.turn_step = "GUESS_SHUFFLED_WORD"
         st.session_state.hint_text = ""
         st.session_state.game_msg = (f"AI Opponent played a word starting with '{from_letter.upper()}'. Unscramble it!", "success")
@@ -158,9 +169,7 @@ def process_game_turn(user_input):
         st.session_state.game_msg = ("Please enter a word!", "warning")
         return
 
-    # STEP 1: Player is starting the game or continuing the chain with a new word
     if st.session_state.turn_step in ["START", "PLAY_NEW_WORD"]:
-        # Enforce last letter rule if it's a running chain
         if st.session_state.last_letter and not user_input.startswith(st.session_state.last_letter):
             st.session_state.game_msg = (f"Rule Error! Your word must start with the letter '{st.session_state.last_letter.upper()}'.", "error")
             return
@@ -173,7 +182,6 @@ def process_game_turn(user_input):
             st.session_state.used_words.append(user_input)
             st.session_state.player_score += len(user_input)
             
-            # Instantly switch to Computer's Turn
             next_letter = user_input[-1]
             ai_success = trigger_computer_turn(next_letter)
             if not ai_success:
@@ -183,7 +191,6 @@ def process_game_turn(user_input):
         else:
             st.session_state.game_msg = ("Invalid word! Word not found in MIT list or Local Database.", "error")
 
-    # STEP 2: Player is guessing/unscrambling the Computer's Shuffled Word
     elif st.session_state.turn_step == "GUESS_SHUFFLED_WORD":
         if user_input == st.session_state.current_word:
             st.session_state.player_score += len(user_input)
@@ -215,12 +222,10 @@ tab1, tab2 = st.tabs(["🎮 Spelly Arena", "⚙️ Word Management (Database)"])
 with tab1:
     st.subheader("Game Board")
     
-    # Dual Score and Information Display
     col_p, col_c, col_t = st.columns(3)
     col_p.metric(label="👤 Your Score", value=st.session_state.player_score)
     col_c.metric(label="🤖 AI Score", value=st.session_state.computer_score)
     
-    # Custom Turn Status Indicator for clarity
     if st.session_state.turn_step == "START":
         col_t.markdown("**Current Phase:**\n\n🟢 Start Game")
     elif st.session_state.turn_step == "PLAY_NEW_WORD":
@@ -228,14 +233,12 @@ with tab1:
     else:
         col_t.markdown("**Current Phase:**\n\n🧩 Guessing Word")
 
-    # Game Alerts and Feedback
     msg_text, msg_type = st.session_state.game_msg
     if msg_type == "success": st.success(msg_text)
     elif msg_type == "error": st.error(msg_text)
     elif msg_type == "warning": st.warning(msg_text)
     else: st.info(msg_text)
 
-    # Shuffled Word Challenge Display
     if st.session_state.turn_step == "GUESS_SHUFFLED_WORD" and st.session_state.shuffled_word:
         st.markdown(f"<div style='background-color:#f0f2f6; padding:15px; border-radius:10px; text-align:center; margin-bottom:15px;'>"
                     f"<span style='font-size:1.2rem; color:#31333F;'>🔀 Shuffled Word Challenge:</span><br>"
@@ -243,7 +246,6 @@ with tab1:
                     f"</div>", unsafe_allow_html=True)
         st.caption(f"Hint Rule: The secret word starts with the letter: **'{st.session_state.current_word[0].upper()}'**")
 
-    # Interactive Input Field
     with st.form(key="game_entry_form", clear_on_submit=True):
         if st.session_state.turn_step == "GUESS_SHUFFLED_WORD":
             prompt_lbl = "Unscramble and type the correct word:"
@@ -258,7 +260,6 @@ with tab1:
             process_game_turn(user_input_val)
             st.rerun()
 
-    # Hints and Reset Systems
     c1, c2 = st.columns(2)
     if st.session_state.turn_step == "GUESS_SHUFFLED_WORD":
         if c1.button("💡 Ask AI for Hint", use_container_width=True):
@@ -309,6 +310,4 @@ with tab2:
             if st.button("🗑️ Permanent Delete", type="primary"):
                 delete_word_from_db(selected_word)
                 st.success("Word removed!")
-                st.rerun()
-    else:
-        st.info("Local SQLite database is currently empty.")
+                st.rerun()  st.info("Local SQLite database is currently empty.")
