@@ -18,6 +18,173 @@ def safe_rerun():
         st.experimental_rerun()
 
 # -----------------------------------------------------------------
+# PLAYFUL GEOMETRIC DESIGN SYSTEM - CSS INJECTION
+# -----------------------------------------------------------------
+st.markdown("""
+<style>
+    /* Import Fonts */
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;800&family=Plus+Jakarta+Sans:wght@400;500;700&display=swap');
+
+    /* Global Resets & Background */
+    .stApp {
+        background-color: #FFFDF5 !important;
+        background-image: url("data:image/svg+xml,%3Csvg width='24' height='24' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='3' cy='3' r='2' fill='%23E2E8F0' /%3E%3C/svg%3E") !important;
+        background-size: 48px 48px !important;
+        font-family: 'Plus Jakarta Sans', system-ui, sans-serif !important;
+        color: #1E293B !important;
+    }
+
+    /* Container max-width */
+    .stMain {
+        max-width: 1200px !important;
+        margin: 0 auto !important;
+        padding: 2rem 1rem !important;
+    }
+
+    /* Headings - Outfit, Bold, Clean */
+    h1, h2, h3, h4, h5, h6 {
+        font-family: 'Outfit', sans-serif !important;
+        font-weight: 800 !important;
+        color: #1E293B !important;
+        letter-spacing: -0.02em !important;
+        margin-bottom: 0.5rem !important;
+    }
+
+    /* Buttons - The "Candy Button" */
+    div.stButton > button {
+        background-color: #8B5CF6 !important; /* Accent Violet */
+        color: #FFFFFF !important;
+        border: 2px solid #1E293B !important;
+        border-radius: 9999px !important; /* Pill */
+        box-shadow: 4px 4px 0px #1E293B !important; /* Hard Pop Shadow */
+        font-weight: 700 !important;
+        font-family: 'Plus Jakarta Sans', sans-serif !important;
+        padding: 0.5rem 1.5rem !important;
+        transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+        min-height: 48px !important;
+    }
+
+    div.stButton > button:hover {
+        transform: translate(-2px, -2px) !important;
+        box-shadow: 6px 6px 0px #1E293B !important;
+    }
+
+    div.stButton > button:active {
+        transform: translate(2px, 2px) !important;
+        box-shadow: 2px 2px 0px #1E293B !important;
+    }
+
+    /* Secondary buttons (like "Restart") - using transparent style */
+    div.stButton > button[kind="secondary"], 
+    div.stButton > button[data-testid="baseButton-secondary"] {
+        background-color: transparent !important;
+        color: #1E293B !important;
+        border: 2px solid #1E293B !important;
+        box-shadow: none !important;
+    }
+    
+    div.stButton > button[kind="secondary"]:hover,
+    div.stButton > button[data-testid="baseButton-secondary"]:hover {
+        background-color: #FBBF24 !important; /* Tertiary Yellow */
+        color: #1E293B !important;
+    }
+
+    /* Text Inputs */
+    div.stTextInput > div > div > input {
+        background-color: #FFFFFF !important;
+        border: 2px solid #CBD5E1 !important;
+        border-radius: 16px !important; /* Radius-lg */
+        color: #1E293B !important;
+        padding: 12px 16px !important;
+        font-family: 'Plus Jakarta Sans', sans-serif !important;
+        transition: all 0.2s ease !important;
+        box-shadow: 4px 4px 0px transparent !important;
+    }
+
+    div.stTextInput > div > div > input:focus {
+        border-color: #8B5CF6 !important;
+        box-shadow: 4px 4px 0px #8B5CF6 !important; /* Hard shadow on focus */
+    }
+
+    /* Metrics (Scores) */
+    div[data-testid="stMetricValue"] {
+        font-family: 'Outfit', sans-serif !important;
+        font-weight: 800 !important;
+        color: #8B5CF6 !important;
+        font-size: 2.5rem !important;
+    }
+    
+    div[data-testid="stMetricLabel"] {
+        font-family: 'Plus Jakarta Sans', sans-serif !important;
+        font-weight: 700 !important;
+        color: #1E293B !important;
+    }
+
+    /* Alerts (Messages) */
+    .stAlert {
+        border-radius: 16px !important;
+        border: 2px solid #1E293B !important;
+        box-shadow: 4px 4px 0px #1E293B !important;
+        background-color: #FFFFFF !important;
+        font-family: 'Plus Jakarta Sans', sans-serif !important;
+    }
+    .stAlert > div {
+        color: #1E293B !important;
+    }
+
+    /* Tabs */
+    button[data-baseweb="tab"] {
+        border-radius: 9999px !important;
+        background-color: transparent !important;
+        border: 2px solid #1E293B !important;
+        margin-right: 8px !important;
+        font-family: 'Outfit', sans-serif !important;
+        font-weight: 700 !important;
+        padding: 0.5rem 1rem !important;
+        color: #1E293B !important;
+    }
+    button[data-baseweb="tab"][aria-selected="true"] {
+        background-color: #8B5CF6 !important;
+        color: #FFFFFF !important;
+        border-color: #8B5CF6 !important;
+    }
+
+    /* Expanders - Sticker Card style */
+    details.stExpander {
+        border: 2px solid #1E293B !important;
+        border-radius: 16px !important;
+        background-color: #FFFFFF !important;
+        box-shadow: 8px 8px 0px #E2E8F0 !important;
+        padding: 0.5rem 1rem !important;
+    }
+    
+    details.stExpander > summary {
+        font-family: 'Outfit', sans-serif !important;
+        font-weight: 700 !important;
+    }
+
+    /* Shuffled Word Challenge Box */
+    .shuffled-box {
+        background-color: #FFFFFF !important;
+        border: 2px solid #1E293B !important;
+        border-radius: 24px !important;
+        box-shadow: 8px 8px 0px #F472B6 !important; /* Pink shadow */
+        padding: 1.5rem !important;
+        text-align: center !important;
+        margin: 1rem 0 !important;
+    }
+
+    /* Respect reduced motion */
+    @media (prefers-reduced-motion: reduce) {
+        * {
+            animation-duration: 0.01ms !important;
+            transition-duration: 0.01ms !important;
+        }
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# -----------------------------------------------------------------
 # DATABASE SETUP (SQLite3 for CRUD Operations)
 # -----------------------------------------------------------------
 def init_db():
@@ -152,7 +319,7 @@ db_words = get_all_db_words()
 all_valid_words = mit_words.union(set(db_words))
 
 st.set_page_config(page_title="Spelly Word Game", page_icon="🎮", layout="centered")
-st.title("🎮 Spelly Word Game")
+st.title("Spelly Word Game")
 
 if 'player_score' not in st.session_state:
     st.session_state.player_score = 0
@@ -254,35 +421,50 @@ def reset_game():
 # -----------------------------------------------------------------
 # USER INTERFACE (UI WITH ACTION TABS)
 # -----------------------------------------------------------------
-tab1, tab2 = st.tabs(["🎮 Spelly Arena", "⚙️ Word Management (Database)"])
+tab1, tab2 = st.tabs(["Spelly Arena", "Word Management"])
 
 with tab1:
     st.subheader("Game Board")
     
+    # Score Cards (Sticker style)
     col_p, col_c, col_t = st.columns(3)
-    col_p.metric(label="👤 Your Score", value=st.session_state.player_score)
-    col_c.metric(label="🤖 AI Score", value=st.session_state.computer_score)
-    
-    if st.session_state.turn_step == "START":
-        col_t.markdown("**Current Phase:**\n\n🟢 Start Game")
-    elif st.session_state.turn_step == "PLAY_NEW_WORD":
-        col_t.markdown(f"**Current Phase:**\n\n📝 New Word (`{st.session_state.last_letter.upper()}`)")
-    else:
-        col_t.markdown("**Current Phase:**\n\n🧩 Guessing Word")
+    with col_p:
+        st.metric(label="Your Score", value=st.session_state.player_score)
+    with col_c:
+        st.metric(label="AI Score", value=st.session_state.computer_score)
+    with col_t:
+        if st.session_state.turn_step == "START":
+            st.markdown("**Phase:** Start")
+        elif st.session_state.turn_step == "PLAY_NEW_WORD":
+            st.markdown(f"**Phase:** New Word (`{st.session_state.last_letter.upper()}`)")
+        else:
+            st.markdown("**Phase:** Guessing")
 
+    # Game Messages
     msg_text, msg_type = st.session_state.game_msg
     if msg_type == "success": st.success(msg_text)
     elif msg_type == "error": st.error(msg_text)
     elif msg_type == "warning": st.warning(msg_text)
     else: st.info(msg_text)
 
+    # Shuffled Word Challenge Display
     if st.session_state.turn_step == "GUESS_SHUFFLED_WORD" and st.session_state.shuffled_word:
-        st.markdown(f"<div style='background-color:#f0f2f6; padding:15px; border-radius:10px; text-align:center; margin-bottom:15px;'>"
-                    f"<span style='font-size:1.2rem; color:#31333F;'>🔀 Shuffled Word Challenge:</span><br>"
-                    f"<strong style='font-size:2.2rem; color:#ff4b4b; letter-spacing: 3px;'>{st.session_state.shuffled_word.upper()}</strong>"
-                    f"</div>", unsafe_allow_html=True)
-        st.caption(f"Hint Rule: The secret word starts with the letter: **'{st.session_state.current_word[0].upper()}'**")
+        st.markdown(
+            f"""
+            <div class="shuffled-box">
+                <div style="font-size:1rem; color:#64748B; font-weight:500;">🔀 Unscramble this word</div>
+                <div style="font-size:2.8rem; font-weight:800; color:#1E293B; letter-spacing: 6px; font-family: 'Outfit', sans-serif;">
+                    {st.session_state.shuffled_word.upper()}
+                </div>
+                <div style="font-size:0.9rem; color:#64748B; margin-top:8px;">
+                    Hint: Starts with <strong>'{st.session_state.current_word[0].upper()}'</strong>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
+    # Game Input Form
     with st.form(key="game_entry_form", clear_on_submit=True):
         if st.session_state.turn_step == "GUESS_SHUFFLED_WORD":
             prompt_lbl = "Unscramble and type the correct word:"
@@ -297,6 +479,7 @@ with tab1:
             process_game_turn(user_input_val)
             safe_rerun()
 
+    # Action Buttons
     c1, c2 = st.columns(2)
     if st.session_state.turn_step == "GUESS_SHUFFLED_WORD":
         if c1.button("💡 Ask AI for Hint", use_container_width=True):
@@ -307,15 +490,17 @@ with tab1:
         reset_game()
         safe_rerun()
 
+    # Hint display
     if st.session_state.hint_text:
-        st.info(f"**AI Hint Details:**\n\n{st.session_state.hint_text}")
+        st.info(f"**Hint:**\n\n{st.session_state.hint_text}")
 
+    # History expander
     if st.session_state.used_words:
         with st.expander("📜 Word History Chain"):
             st.write(" ➡️ ".join([w.upper() for w in st.session_state.used_words]))
 
 with tab2:
-    st.subheader("Local Database Control (CRUD)")
+    st.subheader("Database Control")
     
     new_word_input = st.text_input("Add Custom Word to Dictionary:")
     if st.button("➕ Create Word"):
@@ -344,7 +529,6 @@ with tab2:
                     st.error("Failed to update.")
                     
         with col_del:
-            st.write("Action:")
             if st.button("🗑️ Permanent Delete", type="primary"):
                 delete_word_from_db(selected_word)
                 st.success("Word removed!")
